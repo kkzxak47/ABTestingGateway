@@ -4,10 +4,11 @@
 -- to be licensed under the same terms as the rest of the code.
 
 
-local ffi = require 'ffi'
 local base = require "resty.core.base"
+base.allows_subsystem('http')
 
 
+local ffi = require 'ffi'
 local FFI_OK = base.FFI_OK
 local FFI_ERROR = base.FFI_ERROR
 local FFI_DECLINED = base.FFI_DECLINED
@@ -30,25 +31,25 @@ local errmsg = base.get_errmsg_ptr()
 
 
 ffi.cdef[[
-    struct ngx_http_lua_semaphore_s;
-    typedef struct ngx_http_lua_semaphore_s ngx_http_lua_semaphore_t;
+    struct ngx_http_lua_sema_s;
+    typedef struct ngx_http_lua_sema_s ngx_http_lua_sema_t;
 
-    int ngx_http_lua_ffi_semaphore_new(ngx_http_lua_semaphore_t **psem,
+    int ngx_http_lua_ffi_sema_new(ngx_http_lua_sema_t **psem,
         int n, char **errmsg);
 
-    int ngx_http_lua_ffi_semaphore_post(ngx_http_lua_semaphore_t *sem, int n);
+    int ngx_http_lua_ffi_sema_post(ngx_http_lua_sema_t *sem, int n);
 
-    int ngx_http_lua_ffi_semaphore_count(ngx_http_lua_semaphore_t *sem);
+    int ngx_http_lua_ffi_sema_count(ngx_http_lua_sema_t *sem);
 
-    int ngx_http_lua_ffi_semaphore_wait(ngx_http_request_t *r,
-        ngx_http_lua_semaphore_t *sem, int wait_ms,
+    int ngx_http_lua_ffi_sema_wait(ngx_http_request_t *r,
+        ngx_http_lua_sema_t *sem, int wait_ms,
         unsigned char *errstr, size_t *errlen);
 
-    void ngx_http_lua_ffi_semaphore_gc(ngx_http_lua_semaphore_t *sem);
+    void ngx_http_lua_ffi_sema_gc(ngx_http_lua_sema_t *sem);
 ]]
 
 
-local psem = ffi_new("ngx_http_lua_semaphore_t *[1]")
+local psem = ffi_new("ngx_http_lua_sema_t *[1]")
 
 
 local _M = { version = base.version }
@@ -58,17 +59,17 @@ local mt = { __index = _M }
 function _M.new(n)
     n = tonumber(n) or 0
     if n < 0 then
-        return error("no negative number")
+        error("no negative number", 2)
     end
 
-    local ret = C.ngx_http_lua_ffi_semaphore_new(psem, n, errmsg)
+    local ret = C.ngx_http_lua_ffi_sema_new(psem, n, errmsg)
     if ret == FFI_ERROR then
         return nil, ffi_str(errmsg[0])
     end
 
     local sem = psem[0]
 
-    ffi_gc(sem, C.ngx_http_lua_ffi_semaphore_gc)
+    ffi_gc(sem, C.ngx_http_lua_ffi_sema_gc)
 
     return setmetatable({ sem = sem }, mt)
 end
@@ -76,17 +77,17 @@ end
 
 function _M.wait(self, seconds)
     if type(self) ~= "table" or type(self.sem) ~= "cdata" then
-        return error("not a semaphore instance")
+        error("not a semaphore instance", 2)
     end
 
     local r = getfenv(0).__ngx_req
     if not r then
-        return error("no request found")
+        error("no request found")
     end
 
     local milliseconds = tonumber(seconds) * 1000
     if milliseconds < 0 then
-        return error("no negative number")
+        error("no negative number", 2)
     end
 
     local cdata_sem = self.sem
@@ -95,8 +96,8 @@ function _M.wait(self, seconds)
     local errlen = get_size_ptr()
     errlen[0] = ERR_BUF_SIZE
 
-    local ret = C.ngx_http_lua_ffi_semaphore_wait(r, cdata_sem,
-                                                  milliseconds, err, errlen)
+    local ret = C.ngx_http_lua_ffi_sema_wait(r, cdata_sem,
+                                             milliseconds, err, errlen)
 
     if ret == FFI_ERROR then
         return nil, ffi_str(err, errlen[0])
@@ -110,24 +111,30 @@ function _M.wait(self, seconds)
         return nil, "timeout"
     end
 
-    return co_yield()
+    -- Note: we cannot use the tail-call form here since we
+    -- might need the current function call's activation
+    -- record to hold the reference to our semaphore object
+    -- to prevent it from getting GC'd prematurely.
+    local ok
+    ok, err = co_yield()
+    return ok, err
 end
 
 
 function _M.post(self, n)
     if type(self) ~= "table" or type(self.sem) ~= "cdata" then
-        return error("not a semaphore instance")
+        error("not a semaphore instance", 2)
     end
 
     local cdata_sem = self.sem
 
     local num = n and tonumber(n) or 1
     if num < 1 then
-        return error("no negative number")
+        error("positive number required", 2)
     end
 
     -- always return NGX_OK
-    C.ngx_http_lua_ffi_semaphore_post(cdata_sem, num)
+    C.ngx_http_lua_ffi_sema_post(cdata_sem, num)
 
     return true
 end
@@ -135,10 +142,10 @@ end
 
 function _M.count(self)
     if type(self) ~= "table" or type(self.sem) ~= "cdata" then
-        return error("not a semaphore instance")
+        error("not a semaphore instance", 2)
     end
 
-    return C.ngx_http_lua_ffi_semaphore_count(self.sem)
+    return C.ngx_http_lua_ffi_sema_count(self.sem)
 end
 
 

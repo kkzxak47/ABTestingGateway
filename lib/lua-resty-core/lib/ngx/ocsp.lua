@@ -1,10 +1,11 @@
 -- Copyright (C) Yichun Zhang (agentzh)
 
 
-local ffi = require "ffi"
 local base = require "resty.core.base"
+base.allows_subsystem('http')
 
 
+local ffi = require "ffi"
 local C = ffi.C
 local ffi_str = ffi.string
 local getfenv = getfenv
@@ -124,7 +125,7 @@ end
 function _M.set_ocsp_status_resp(ocsp_resp)
     local r = getfenv(0).__ngx_req
     if not r then
-        return error("no request found")
+        error("no request found")
     end
 
     local rc = C.ngx_http_lua_ffi_ssl_set_ocsp_status_resp(r, ocsp_resp,
