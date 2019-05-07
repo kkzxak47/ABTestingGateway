@@ -1,4 +1,4 @@
-local modulename = "abtestingDiversionCustomercode"   -- 模块名记得更改
+local modulename = "abtestingDiversionDomainName"   -- 模块名记得更改
 
 local _M    = {}
 local mt    = { __index = _M }

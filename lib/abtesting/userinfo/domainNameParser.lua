@@ -1,5 +1,6 @@
+
 local _M = {
-    _VERSION = '0.0.1'
+    _VERSION = '0.01'
 }
 
 _M.get = function()

@@ -21,7 +21,7 @@ _M.divtypes = {
     ["arg_city"]    = 'cityParser',
 
     ["url"]         = 'urlParser',
-    ["domainname"]  = 'domainname',
+    ["domainname"]  = 'domainNameParser',
 }   
 
 _M.prefixConf = {

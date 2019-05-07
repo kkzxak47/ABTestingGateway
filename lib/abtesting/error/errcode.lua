@@ -45,6 +45,8 @@ _M.info = {
     
     --  unknown reason
     ['UNKNOWN_ERROR']		    = { 50601, 'unknown reason '},
+    ['SHOW_REQUEST_ARGS'] = {50701, 'request arguments --> '},
+    ['SHOW_POST_ARGS'] = {50702, 'POST arguments --> '},
 }
 
 return _M

@@ -47,7 +47,7 @@ http {
 
 	upstream beta3 {
 		keepalive 1000;
-		server 127.1.0.1:8022;
+		server 127.0.0.1:8022;
 
 #		check interval=3000 rise=2 fall=5 timeout=1000 type=http;
 #		check_http_send "HEAD / HTTP/1.0\r\n\r\n";
